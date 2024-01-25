@@ -1,11 +1,15 @@
 import uvicorn
 from fastapi import FastAPI
-
 from contextlib import asynccontextmanager
-
+import asyncio
 from settings import env_settings
-from models import AccessTokenRequest, OrderRequest, QueryIndexRequest, sAlertNumRequest
-
+from models import (
+    AccessTokenRequest,
+    OrderRequest,
+    QueryIndexRequest,
+    sAlertNumRequest,
+    RealConditionRequest,
+)
 from trading import (
     get_access_token,
     buy_market_order,
@@ -14,6 +18,7 @@ from trading import (
     sell_limit_order,
     get_query_index,
     query_index_to_sAlertNum,
+    realcondition_connect,
 )
 
 ACCESS_TOKEN_DICT = {}
@@ -35,6 +40,9 @@ async def lifespan(app: FastAPI):
     ACCESS_TOKEN_DICT["ACCESS_TOKEN"] = get_access_token(access_token_request)
     ACCESS_TOKEN_DICT["A_ACCESS_TOKEN"] = get_access_token(A_access_token_request)
 
+    print(f"{env_settings.CONDITION_NAME} 조건검색을 이용한 자동매매를 시작합니다.")
+
+    ###########################실시간 조건검색 처리 부분 #######################################
     ### 조건검색 query_index 가져오기 ###
     query_index_request = QueryIndexRequest(
         AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"],
@@ -43,7 +51,6 @@ async def lifespan(app: FastAPI):
     )
 
     query_index = await get_query_index(query_index_request)
-    print(query_index)
     #######################################
 
     ### query_index -> sAlertNum 변경 ###
@@ -53,8 +60,18 @@ async def lifespan(app: FastAPI):
     )
 
     sAlertNum = await query_index_to_sAlertNum(salertnum_request)
-    print(sAlertNum)
     #####################################
+
+    ### 실시간 조건검색 내역 받아오기(Websocket) ###
+
+    realcondition_request = RealConditionRequest(
+        AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], sAlertNum=sAlertNum
+    )
+
+    asyncio.create_task(realcondition_connect(realcondition_request))
+
+    ##############################################
+    ###########################################################################################
 
     # ### 주문 ####
     # order_request = OrderRequest(

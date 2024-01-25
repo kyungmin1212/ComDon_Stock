@@ -10,3 +10,8 @@ class QueryIndexRequest(BaseModel):
 class sAlertNumRequest(BaseModel):
     AccessToken: str
     query_index: str  # get_query_index를 통해 얻은 index
+
+
+class RealConditionRequest(BaseModel):
+    AccessToken: str
+    sAlertNum: str
