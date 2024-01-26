@@ -1,6 +1,13 @@
 import aiohttp
 from utils import fetch
-from models import QueryIndexRequest, sAlertNumRequest, RealConditionRequest
+from models import (
+    QueryIndexRequest,
+    sAlertNumRequest,
+    RealtimeConditionRequest,
+    KosdoqStocksRealtimepriceRequest,
+    KospiStocksRealtimepriceRequest,
+)
+
 import websockets
 import json
 
@@ -72,13 +79,15 @@ async def query_index_to_sAlertNum(salertnum_request: sAlertNumRequest):
     return sAlertNum
 
 
-async def realcondition_connect(realcondition_request: RealConditionRequest):
+async def realtime_condition_connect(
+    realtime_condition_request: RealtimeConditionRequest,
+):
     BASE_URL = "wss://openapi.ebestsec.co.kr:9443"
     PATH = "websocket"
     URL = f"{BASE_URL}/{PATH}"
 
-    header = {"token": realcondition_request.AccessToken, "tr_type": "3"}
-    body = {"tr_cd": "AFR", "tr_key": realcondition_request.sAlertNum}
+    header = {"token": realtime_condition_request.AccessToken, "tr_type": "3"}
+    body = {"tr_cd": "AFR", "tr_key": realtime_condition_request.sAlertNum}
 
     # 웹 소켓에 접속을 합니다.
     async with websockets.connect(URL) as websocket:
