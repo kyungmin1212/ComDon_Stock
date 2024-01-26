@@ -79,20 +79,29 @@ async def lifespan(app: FastAPI):
     # ###########################################################################################
 
     ### 실시간 가격 가져오기 ###
-    # kosdoq #
+    # 등록
+    # kosdoq
+    print("등록")
     kosdoq_stocks_realtimeprice_request = KosdoqStocksRealtimepriceRequest(
-        AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="085670"
+        AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="085670", register=True
     )
-    asyncio.create_task(
+    task1 = asyncio.create_task(
         get_kosdoq_stocks_realtimeprice(kosdoq_stocks_realtimeprice_request)
     )
     # kospi
     kospi_stocks_realtimeprice_request = KospiStocksRealtimepriceRequest(
-        AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="005930"
+        AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="005930", register=True
     )
-    asyncio.create_task(
+    task2 = asyncio.create_task(
         get_kospi_stocks_realtimeprice(kospi_stocks_realtimeprice_request)
     )
+    await asyncio.sleep(1)
+
+    # 해제
+    print("해제")
+    task1.cancel()
+    task2.cancel()
+
     ############################
 
     # ### 주문 ####
