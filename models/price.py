@@ -1,11 +1,12 @@
 from pydantic import BaseModel
 
 
-class KosdoqStocksRealtimepriceRequest(BaseModel):
-    AccessToken: str
+class StocksRealtimepriceRequest(BaseModel):
+    AccessTokenDict: dict
     IsuNo: str
+    KospiKosdaq: str
 
 
-class KospiStocksRealtimepriceRequest(BaseModel):
-    AccessToken: str
-    IsuNo: str
+class ConditionStockRegisterRealtimepriceRequest(BaseModel):
+    AccessTokenDict: dict
+    KospiKosdaqStockCodeDict: dict

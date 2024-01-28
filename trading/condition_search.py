@@ -1,13 +1,17 @@
 import aiohttp
-from utils import fetch
+import asyncio
+
+from utils import fetch, calculate_qty
 from models import (
     QueryIndexRequest,
     sAlertNumRequest,
     RealtimeConditionRequest,
     KosdoqStocksRealtimepriceRequest,
     KospiStocksRealtimepriceRequest,
+    OrderRequest,
 )
 
+from trading import buy_market_order
 import websockets
 import json
 
@@ -79,15 +83,20 @@ async def query_index_to_sAlertNum(salertnum_request: sAlertNumRequest):
     return sAlertNum
 
 
-async def realtime_condition_connect(
-    realtime_condition_request: RealtimeConditionRequest,
+async def realtime_condition_connect_buy(
+    realtime_condition_request: RealtimeConditionRequest, condition_queue
 ):
     BASE_URL = "wss://openapi.ebestsec.co.kr:9443"
     PATH = "websocket"
     URL = f"{BASE_URL}/{PATH}"
 
-    header = {"token": realtime_condition_request.AccessToken, "tr_type": "3"}
+    header = {
+        "token": realtime_condition_request.AccessTokenDict["ACCESS_TOKEN"],
+        "tr_type": "3",
+    }
     body = {"tr_cd": "AFR", "tr_key": realtime_condition_request.sAlertNum}
+
+    condition_set = set()  # 당일 한번 매매한 종목은 더이상 매매하지 않습니다.
 
     # 웹 소켓에 접속을 합니다.
     async with websockets.connect(URL) as websocket:
@@ -96,4 +105,38 @@ async def realtime_condition_connect(
 
         while True:
             data = await websocket.recv()
-            print(data)
+            data_dict = json.loads(data)
+
+            if data_dict["body"] != None:
+                stock_code = data_dict["body"]["gsCode"]
+                if (stock_code not in condition_set) and (
+                    data_dict["body"]["gsJobFlag"] == ("N" or "R")
+                ):  # 당일 검색되지 않았던 종목만 매수 진행
+                    stock_price = data_dict["body"]["gsPrice"]
+                    condition_set.add(stock_code)
+                    available_qty = calculate_qty(stock_price)
+                    # 모의투자인 경우
+                    if "A_ACCESS_TOKEN" in realtime_condition_request.AccessTokenDict:
+                        order_request = OrderRequest(
+                            AccessToken=realtime_condition_request.AccessTokenDict[
+                                "A_ACCESS_TOKEN"
+                            ],  # 모의투자인 경우 ACCESS_TOKEN_DICT["A_ACCESS_TOKEN"]
+                            IsuNo="A" + stock_code,  # 모의투자인 경우 "A005930"
+                            OrdQty=available_qty,
+                            OrdPrc=0,
+                        )
+                    else:  # 실제투자인 경우
+                        order_request = OrderRequest(
+                            AccessToken=realtime_condition_request.AccessTokenDict[
+                                "ACCESS_TOKEN"
+                            ],
+                            IsuNo=stock_code,
+                            OrdQty=available_qty,
+                            OrdPrc=0,
+                        )
+                    # 시장가 매수 주문
+                    asyncio.create_task(buy_market_order(order_request))
+                    # condition_stock_register_realprice의 condition_queue로 데이터 전송
+                    condition_queue.put_nowait((stock_code, stock_price))
+            # 너무 잦은 데이터 수신방지
+            await asyncio.sleep(0.1)

@@ -6,6 +6,6 @@ from models.condition import (
     RealtimeConditionRequest,
 )
 from models.price import (
-    KosdoqStocksRealtimepriceRequest,
-    KospiStocksRealtimepriceRequest,
+    StocksRealtimepriceRequest,
+    ConditionStockRegisterRealtimepriceRequest,
 )
