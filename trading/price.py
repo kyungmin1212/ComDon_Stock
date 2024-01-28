@@ -4,7 +4,7 @@ import websockets
 import json
 
 
-async def get_kosdoq_stocks_realtimeprice(
+async def register_kosdoq_stocks_realtimeprice(
     kosdoq_stocks_realtimeprice_request: KosdoqStocksRealtimepriceRequest,
 ):
     BASE_URL = "wss://openapi.ebestsec.co.kr:9443"
@@ -24,7 +24,7 @@ async def get_kosdoq_stocks_realtimeprice(
             print(data)
 
 
-async def get_kospi_stocks_realtimeprice(
+async def register_kospi_stocks_realtimeprice(
     kospi_stocks_realtimeprice_request: KospiStocksRealtimepriceRequest,
 ):
     BASE_URL = "wss://openapi.ebestsec.co.kr:9443"
