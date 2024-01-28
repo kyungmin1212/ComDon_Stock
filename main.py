@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 import asyncio
 from settings import env_settings
+from utils import get_kospi_kosdaq_stockcode
 from models import (
     AccessTokenRequest,
     OrderRequest,
@@ -21,16 +22,17 @@ from trading import (
     get_query_index,
     query_index_to_sAlertNum,
     realtime_condition_connect,
-    get_kosdoq_stocks_realtimeprice,
-    get_kospi_stocks_realtimeprice,
+    register_kosdoq_stocks_realtimeprice,
+    register_kospi_stocks_realtimeprice,
 )
-
-ACCESS_TOKEN_DICT = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("프로그램 실행")
+
+    ACCESS_TOKEN_DICT = {}
+
     # 실제 계좌 APP_KEY, APP_SECRET
     access_token_request = AccessTokenRequest(
         appkey=env_settings.APP_KEY, appsecretkey=env_settings.APP_SECRET
@@ -44,7 +46,13 @@ async def lifespan(app: FastAPI):
     ACCESS_TOKEN_DICT["ACCESS_TOKEN"] = get_access_token(access_token_request)
     ACCESS_TOKEN_DICT["A_ACCESS_TOKEN"] = get_access_token(A_access_token_request)
 
-    # print(f"{env_settings.CONDITION_NAME} 조건검색을 이용한 자동매매를 시작합니다.")
+    # kospi / kosdaq 종목 코드가져오기
+    kospi_kosdaq_stockcode = get_kospi_kosdaq_stockcode()
+    print(
+        f"kospi 종목 수 : {len(kospi_kosdaq_stockcode['kospi'])}, kosdaq 종목 수 : {len(kospi_kosdaq_stockcode['kosdaq'])}"
+    )
+
+    print(f"{env_settings.CONDITION_NAME} 조건검색을 이용한 자동매매를 시작합니다.")
 
     # ###########################실시간 조건검색 처리 부분 #######################################
     # ### 조건검색 query_index 가져오기 ###
@@ -68,39 +76,44 @@ async def lifespan(app: FastAPI):
     # #####################################
 
     # ### 실시간 조건검색 내역 받아오기(Websocket) ###
-
-    # realcondition_request = RealtimeConditionRequest(
-    #     AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], sAlertNum=sAlertNum
+    # condition_list = []
+    # realtime_condition_request = RealtimeConditionRequest(
+    #     AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"],
+    #     sAlertNum=sAlertNum,
     # )
 
-    # asyncio.create_task(realtime_condition_connect(realcondition_request))
-
+    # # 장이 열린동안 계속해서 실시간 조건검색 내역을 받아와야합니다.
+    # asyncio.create_task(
+    #     realtime_condition_connect(realtime_condition_request, condition_list)
+    # )
+    # await asyncio.sleep(1)
+    # print(condition_list)
     # ##############################################
     # ###########################################################################################
 
     ### 실시간 가격 가져오기 ###
     # 등록
     # kosdoq
-    print("등록")
-    kosdoq_stocks_realtimeprice_request = KosdoqStocksRealtimepriceRequest(
-        AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="085670", register=True
-    )
-    task1 = asyncio.create_task(
-        get_kosdoq_stocks_realtimeprice(kosdoq_stocks_realtimeprice_request)
-    )
-    # kospi
-    kospi_stocks_realtimeprice_request = KospiStocksRealtimepriceRequest(
-        AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="005930", register=True
-    )
-    task2 = asyncio.create_task(
-        get_kospi_stocks_realtimeprice(kospi_stocks_realtimeprice_request)
-    )
-    await asyncio.sleep(1)
+    # print("등록")
+    # kosdoq_stocks_realtimeprice_request = KosdoqStocksRealtimepriceRequest(
+    #     AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="085670"
+    # )
+    # task1 = asyncio.create_task(
+    #     get_kosdoq_stocks_realtimeprice(kosdoq_stocks_realtimeprice_request)
+    # )
+    # # kospi
+    # kospi_stocks_realtimeprice_request = KospiStocksRealtimepriceRequest(
+    #     AccessToken=ACCESS_TOKEN_DICT["ACCESS_TOKEN"], IsuNo="005930"
+    # )
+    # task2 = asyncio.create_task(
+    #     get_kospi_stocks_realtimeprice(kospi_stocks_realtimeprice_request)
+    # )
+    # await asyncio.sleep(1)
 
-    # 해제
-    print("해제")
-    task1.cancel()
-    task2.cancel()
+    # # 해제
+    # print("해제")
+    # task1.cancel()
+    # task2.cancel()
 
     ############################
 
