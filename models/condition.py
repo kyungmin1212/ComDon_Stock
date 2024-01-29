@@ -13,5 +13,5 @@ class sAlertNumRequest(BaseModel):
 
 
 class RealtimeConditionRequest(BaseModel):
-    AccessToken: str
+    AccessTokenDict: dict
     sAlertNum: str
