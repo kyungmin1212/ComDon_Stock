@@ -6,8 +6,6 @@ from models import (
     QueryIndexRequest,
     sAlertNumRequest,
     RealtimeConditionRequest,
-    KosdoqStocksRealtimepriceRequest,
-    KospiStocksRealtimepriceRequest,
     OrderRequest,
 )
 
@@ -106,13 +104,13 @@ async def realtime_condition_connect_buy(
         while True:
             data = await websocket.recv()
             data_dict = json.loads(data)
-
             if data_dict["body"] != None:
                 stock_code = data_dict["body"]["gsCode"]
                 if (stock_code not in condition_set) and (
                     data_dict["body"]["gsJobFlag"] == ("N" or "R")
                 ):  # 당일 검색되지 않았던 종목만 매수 진행
-                    stock_price = data_dict["body"]["gsPrice"]
+                    print(data_dict)
+                    stock_price = float(data_dict["body"]["gsPrice"])
                     condition_set.add(stock_code)
                     available_qty = calculate_qty(stock_price)
                     # 모의투자인 경우
@@ -135,8 +133,10 @@ async def realtime_condition_connect_buy(
                             OrdPrc=0,
                         )
                     # 시장가 매수 주문
+                    print("시장가 주문")
+                    print(condition_set)
                     asyncio.create_task(buy_market_order(order_request))
-                    # condition_stock_register_realprice의 condition_queue로 데이터 전송
+                    # condition_stock_register_realprㄴice의 condition_queue로 데이터 전송
                     condition_queue.put_nowait((stock_code, stock_price))
             # 너무 잦은 데이터 수신방지
             await asyncio.sleep(0.1)

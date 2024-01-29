@@ -15,6 +15,7 @@ from settings import env_settings
 async def register_stocks_realtimeprice(
     stocks_realtimeprice_request: StocksRealtimepriceRequest,
     stock_buy_price,
+    stock_profit_loss_price_dict,
 ):
     BASE_URL = "wss://openapi.ebestsec.co.kr:9443"
     PATH = "websocket"
@@ -45,6 +46,16 @@ async def register_stocks_realtimeprice(
     loss_price = calculate_loss_price(stock_buy_price, env_settings.LOSS_PERCENT)
     loss_flag = False  # 이게 True가 되면, profit_1과 profit_2 더이상 진행할 필요 없음. 이미 다 손절 / 또는 profit_1_flag와 profit_2_flat가 모두 True가 되면 loss_flag 또한 의미가 없어짐
 
+    print(
+        f"{stocks_realtimeprice_request.IsuNo}종목 / 매수가 : {stock_buy_price} / 익절가1 : {profit_price_1} / 익절가2 : {profit_price_2} / 손절가 : {loss_price}"
+    )
+    stock_profit_loss_price_dict[stocks_realtimeprice_request.IsuNo] = {
+        "buy_price": stock_buy_price,
+        "profit_price_1": profit_price_1,
+        "profit_price_2": profit_price_2,
+        "loss_price": loss_price,
+    }
+
     # 웹 소켓에 접속을 합니다.
     async with websockets.connect(URL) as websocket:
         data_to_send = json.dumps({"header": header, "body": body})  # json -> str로 변경
@@ -56,7 +67,7 @@ async def register_stocks_realtimeprice(
             data = await websocket.recv()
             data_dict = json.loads(data)
             if data_dict["body"] != None:
-                now_price = data_dict["body"]["price"]
+                now_price = float(data_dict["body"]["price"])
 
                 # 현재가가 고점이면 고점 갱신
                 if after_buy_high_price < now_price:
@@ -67,6 +78,12 @@ async def register_stocks_realtimeprice(
                         loss_price = calculate_loss_price(
                             after_buy_high_price, env_settings.LOSS_PERCENT
                         )
+                        print(
+                            f"{stocks_realtimeprice_request.IsuNo}종목 손절가 업데이트 / 매수가 : {stock_buy_price} / 익절가1 : {profit_price_1} / 익절가2 : {profit_price_2} / 손절가 : {loss_price}"
+                        )
+                        stock_profit_loss_price_dict[
+                            stocks_realtimeprice_request.IsuNo
+                        ]["loss_price"] = loss_price
 
                 # 1차 익절가 # 절반 익절 (매수개수의 절반 익절)
                 if (
@@ -169,16 +186,24 @@ async def register_stocks_realtimeprice(
             # 너무 잦은 데이터 수신방지
             await asyncio.sleep(0.1)
 
+        del stock_profit_loss_price_dict[stocks_realtimeprice_request.IsuNo]
+
 
 async def condition_stock_register_realtimeprice(
     codition_stock_register_realtimeprice_request: ConditionStockRegisterRealtimepriceRequest,
     condition_queue,
 ):
+    stock_profit_loss_price_dict = {}
+    asyncio.create_task(check_profit_loss_price(stock_profit_loss_price_dict))
     while True:
         (
             stock_code,
             stock_buy_price,
         ) = await condition_queue.get()  # queue에 데이터가 있을때마다 꺼냅니다.
+
+        # 최대보유종목수 넘어가면 무시하기
+        if len(stock_profit_loss_price_dict) > env_settings.MAX_STOCKS:
+            continue
 
         if (
             stock_code
@@ -187,9 +212,7 @@ async def condition_stock_register_realtimeprice(
             ]
         ):  # 코스피종목
             stocks_realtimeprice_request = StocksRealtimepriceRequest(
-                AccessToken=codition_stock_register_realtimeprice_request.AccessTokenDict[
-                    "ACCESS_TOKEN"
-                ],
+                AccessTokenDict=codition_stock_register_realtimeprice_request.AccessTokenDict,
                 IsuNo=stock_code,
                 KospiKosdaq="kospi",
             )
@@ -197,6 +220,7 @@ async def condition_stock_register_realtimeprice(
                 register_stocks_realtimeprice(
                     stocks_realtimeprice_request,
                     stock_buy_price,
+                    stock_profit_loss_price_dict,
                 )
             )
         elif (
@@ -206,9 +230,7 @@ async def condition_stock_register_realtimeprice(
             ]
         ):  # 코스닥종목
             stocks_realtimeprice_request = StocksRealtimepriceRequest(
-                AccessToken=codition_stock_register_realtimeprice_request.AccessTokenDict[
-                    "ACCESS_TOKEN"
-                ],
+                AccessTokenDict=codition_stock_register_realtimeprice_request.AccessTokenDict,
                 IsuNo=stock_code,
                 KospiKosdaq="kosdaq",
             )
@@ -216,7 +238,14 @@ async def condition_stock_register_realtimeprice(
                 register_stocks_realtimeprice(
                     stocks_realtimeprice_request,
                     stock_buy_price,
+                    stock_profit_loss_price_dict,
                 )
             )
 
         condition_queue.task_done()
+
+
+async def check_profit_loss_price(stock_profit_loss_price_dict):
+    while True:
+        print(stock_profit_loss_price_dict)
+        await asyncio.sleep(10)  # 10초마다 보유종목 매수가 익절가 손절가 파악

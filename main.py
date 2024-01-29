@@ -77,8 +77,8 @@ async def lifespan(app: FastAPI):
     # 조건검색에서 검색된 종목을 실시간으로 데이터를 받아오게 등록하고, 정해진 익절 손절에 따라 매도합니다.
     codition_stock_register_realtimeprice_request = (
         ConditionStockRegisterRealtimepriceRequest(
-            KospiKosdaqStockCodeDict=kospi_kosdaq_stockcode,
             AccessTokenDict=ACCESS_TOKEN_DICT,
+            KospiKosdaqStockCodeDict=kospi_kosdaq_stockcode,
         )
     )
 
