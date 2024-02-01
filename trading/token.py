@@ -1,3 +1,6 @@
+from models import AccessTokenRequest
+from settings import env_settings
+
 import requests
 from models import AccessTokenRequest
 
@@ -18,3 +21,22 @@ def get_access_token(access_token_request: AccessTokenRequest):
     request = requests.post(URL, headers=header, params=param)
     ACCESS_TOKEN = request.json()["access_token"]
     return ACCESS_TOKEN
+
+
+def get_access_token_function(virtual: bool = False):
+    if virtual:
+        access_token_request = AccessTokenRequest(
+            appkey=env_settings.VIRTUAL_APP_KEY,
+            appsecretkey=env_settings.VIRTUAL_APP_SECRET,
+        )
+
+        token = get_access_token(access_token_request)
+
+    else:
+        access_token_request = AccessTokenRequest(
+            appkey=env_settings.APP_KEY, appsecretkey=env_settings.APP_SECRET
+        )
+
+        token = get_access_token(access_token_request)
+
+    return token

@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     APP_KEY: str
     APP_SECRET: str
-    A_FLAG: str
-    A_APP_KEY: str
-    A_APP_SECRET: str
+    VIRTUAL_FLAG: str
+    VIRTUAL_APP_KEY: str
+    VIRTUAL_APP_SECRET: str
     USER_ID: str
     CONDITION_NAME: str
     TOTAL_BALANCE: float
@@ -19,7 +19,6 @@ class Settings(BaseSettings):
     BUY_PERCENT: float
     ADD_PROFIT_PERCENT_1: float
     ADD_PROFIT_PERCENT_2: float
-    ADD_LOSS_PERCENT: float
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
