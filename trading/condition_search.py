@@ -81,7 +81,7 @@ async def query_index_to_sAlertNum(salertnum_request: sAlertNumRequest):
 
 
 async def realtime_condition_connect_buy(
-    realtime_condition_request: RealtimeConditionRequest, condition_queue
+    realtime_condition_request: RealtimeConditionRequest, condition_queue, condition_set
 ):
     BASE_URL = "wss://openapi.ebestsec.co.kr:9443"
     PATH = "websocket"
@@ -93,11 +93,11 @@ async def realtime_condition_connect_buy(
     }
     body = {"tr_cd": "AFR", "tr_key": realtime_condition_request.sAlertNum}
 
-    condition_set = set()  # 당일 한번 매매한 종목은 더이상 매매하지 않습니다.
-    condition_set.add("450140")
     # 웹 소켓에 접속을 합니다.
     async with websockets.connect(URL) as websocket:
-        data_to_send = json.dumps({"header": header, "body": body})  # json -> str로 변경
+        data_to_send = json.dumps(
+            {"header": header, "body": body}
+        )  # json -> str로 변경
         await websocket.send(data_to_send)
 
         while True:
@@ -119,7 +119,7 @@ async def realtime_condition_connect_buy(
 
 
 async def realtime_condition_connect_buy_function(
-    access_token_dict: dict, condition_queue
+    access_token_dict: dict, condition_queue, condition_set
 ):
     ### 조건검색 query_index 가져오기 ###
     query_index_request = QueryIndexRequest(
@@ -147,5 +147,14 @@ async def realtime_condition_connect_buy_function(
     )
 
     search_condition_stock_buy_task = asyncio.create_task(
-        realtime_condition_connect_buy(realtime_condition_request, condition_queue),
+        realtime_condition_connect_buy(
+            realtime_condition_request, condition_queue, condition_set
+        ),
     )
+
+
+async def command_handler(command_queue, condition_set):
+    while True:
+        command, stock_code = await command_queue.get()
+        if command == "delete":
+            condition_set.discard(stock_code)
