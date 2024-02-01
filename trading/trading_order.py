@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 from utils import fetch
 from models import OrderRequest
 
@@ -128,3 +129,45 @@ async def sell_market_order(order_request: OrderRequest):
         response = await fetch(session, URL, header, body)
 
     return response
+
+
+async def sell_market_order_function(
+    virtual: bool, accesstoekn_dict: dict, stock_code: str, qty: int
+):
+    if virtual:
+        order_request = OrderRequest(
+            AccessToken=accesstoekn_dict["VIRTUAL_ACCESS_TOKEN"],
+            IsuNo="A" + stock_code,
+            OrdQty=qty,
+            OrdPrc=0,
+        )
+    else:
+        order_request = OrderRequest(
+            AccessToken=accesstoekn_dict["ACCESS_TOKEN"],
+            IsuNo=stock_code,
+            OrdQty=qty,
+            OrdPrc=0,
+        )
+    # 시장가 매도 주문
+    asyncio.create_task(sell_market_order(order_request))
+
+
+async def buy_market_order_function(
+    virtual: bool, accesstoekn_dict: dict, stock_code: str, qty: int
+):
+    if virtual:
+        order_request = OrderRequest(
+            AccessToken=accesstoekn_dict["VIRTUAL_ACCESS_TOKEN"],
+            IsuNo="A" + stock_code,
+            OrdQty=qty,
+            OrdPrc=0,
+        )
+    else:
+        order_request = OrderRequest(
+            AccessToken=accesstoekn_dict["ACCESS_TOKEN"],
+            IsuNo=stock_code,
+            OrdQty=qty,
+            OrdPrc=0,
+        )
+    # 시장가 매도 주문
+    asyncio.create_task(buy_market_order(order_request))

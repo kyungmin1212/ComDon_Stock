@@ -7,9 +7,6 @@ def calculate_qty(now_stock_price):
     stock_buy_max_balance = env_settings.TOTAL_BALANCE / env_settings.MAX_STOCKS
     available_qty = int(stock_buy_max_balance / ten_percent_price)
 
-    if env_settings.ADD_BUY_FLAG == "1":  # 추가 매수면 절반씩 매수해야함.
-        available_qty = int(available_qty / 2)
-
     return available_qty
 
 
