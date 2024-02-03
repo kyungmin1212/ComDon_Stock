@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     BUY_PERCENT: float
     ADD_PROFIT_PERCENT_1: float
     ADD_PROFIT_PERCENT_2: float
+    BUY_AGAIN_FLAG: str
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

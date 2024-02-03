@@ -12,11 +12,13 @@ import websockets
 import json
 import asyncio
 from settings import env_settings
+from pprint import pprint
 
 
 async def register_stocks_realtimeprice(
     stocks_realtimeprice_request: StocksRealtimepriceRequest,
     stock_profit_loss_price_dict,
+    command_queue,
 ):
     profit_1_flag = False
     profit_2_flag = False
@@ -51,7 +53,9 @@ async def register_stocks_realtimeprice(
 
     # 웹 소켓에 접속을 합니다.
     async with websockets.connect(URL) as websocket:
-        data_to_send = json.dumps({"header": header, "body": body})  # json -> str로 변경
+        data_to_send = json.dumps(
+            {"header": header, "body": body}
+        )  # json -> str로 변경
         await websocket.send(data_to_send)
 
         # 매수이후에 최고가를 의미
@@ -103,7 +107,9 @@ async def register_stocks_realtimeprice(
                             stocks_realtimeprice_request.IsuNo
                         ]["loss_price"] = loss_price
                         if env_settings.ADD_BUY_FLAG == "1":
-                            if not add_buy_flag:  # 아직 추가매수를 진행하지 않은 경우라면 같이 업데이트 필요
+                            if (
+                                not add_buy_flag
+                            ):  # 아직 추가매수를 진행하지 않은 경우라면 같이 업데이트 필요
                                 add_buy_price = calculate_loss_price(
                                     after_buy_high_price, env_settings.BUY_PERCENT
                                 )
@@ -255,6 +261,12 @@ async def register_stocks_realtimeprice(
                     )
 
                     loss_flag = True
+                    # 손절할 경우 다시 돌파매매를 가능하도록 설정해줍니다.
+                    # command_queue -> condition_search.py command_handler함수에 연결되어져 있습니다.
+                    if env_settings.BUY_AGAIN_FLAG == "1":
+                        command_queue.put_nowait(
+                            ("delete", stocks_realtimeprice_request.IsuNo)
+                        )
 
         del stock_profit_loss_price_dict[stocks_realtimeprice_request.IsuNo]
 
@@ -262,6 +274,7 @@ async def register_stocks_realtimeprice(
 async def condition_stock_register_realtimeprice(
     codition_stock_register_realtimeprice_request: ConditionStockRegisterRealtimepriceRequest,
     condition_queue,
+    command_queue,
 ):
     stock_profit_loss_price_dict = {}
     # 10초마다 종목별 익절가 손절가 확인
@@ -288,7 +301,9 @@ async def condition_stock_register_realtimeprice(
             if available_qty < 2:  # 분할매도 2번이상해야함
                 continue
 
-        if env_settings.ADD_BUY_FLAG == "1":  # 추가매수 설정되어져 있을 경우, 절반씩 매수
+        if (
+            env_settings.ADD_BUY_FLAG == "1"
+        ):  # 추가매수 설정되어져 있을 경우, 절반씩 매수
             buy_1_qty = available_qty // 2
             buy_2_qty = available_qty - buy_1_qty
         else:
@@ -361,13 +376,17 @@ async def condition_stock_register_realtimeprice(
                 kospi_kosdaq_stockcode_dict=codition_stock_register_realtimeprice_request.KospiKosdaqStockCodeDict,
                 access_token_dict=codition_stock_register_realtimeprice_request.AccessTokenDict,
                 stock_profit_loss_price_dict=stock_profit_loss_price_dict,
+                command_queue=command_queue,
             )
         )
         condition_queue.task_done()
 
 
 async def condition_stock_register_realtimeprice_sell_function(
-    access_token_dict: dict, kospi_kosdaq_stockcode_dict: dict, condition_queue
+    access_token_dict: dict,
+    kospi_kosdaq_stockcode_dict: dict,
+    condition_queue,
+    command_queue,
 ):
     # 조건검색에서 검색된 종목을 실시간으로 데이터를 받아오게 등록하고, 정해진 익절 손절에 따라 매도합니다.
     codition_stock_register_realtimeprice_request = (
@@ -379,14 +398,16 @@ async def condition_stock_register_realtimeprice_sell_function(
 
     get_stock_realtimeprice_sell_task = asyncio.create_task(
         condition_stock_register_realtimeprice(
-            codition_stock_register_realtimeprice_request, condition_queue
+            codition_stock_register_realtimeprice_request,
+            condition_queue,
+            command_queue,
         )
     )
 
 
 async def check_profit_loss_price(stock_profit_loss_price_dict):
     while True:
-        print(stock_profit_loss_price_dict)
+        pprint(stock_profit_loss_price_dict)
         await asyncio.sleep(10)  # 10초마다 보유종목 매수가 익절가 손절가 파악
 
 
@@ -395,6 +416,7 @@ async def register_stocks_realtimeprice_function(
     kospi_kosdaq_stockcode_dict: dict,
     access_token_dict: dict,
     stock_profit_loss_price_dict: dict,
+    command_queue,
 ):
     if stock_code in kospi_kosdaq_stockcode_dict["kospi"]:  # 코스피종목
         stocks_realtimeprice_request = StocksRealtimepriceRequest(
@@ -413,5 +435,6 @@ async def register_stocks_realtimeprice_function(
         register_stocks_realtimeprice(
             stocks_realtimeprice_request,
             stock_profit_loss_price_dict,
+            command_queue,
         )
     )

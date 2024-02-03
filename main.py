@@ -9,6 +9,7 @@ from trading import (
     get_access_token_function,
     realtime_condition_connect_buy_function,
     condition_stock_register_realtimeprice_sell_function,
+    command_handler,
 )
 
 
@@ -37,9 +38,14 @@ async def lifespan(app: FastAPI):
     print(f"{env_settings.CONDITION_NAME} 조건검색을 이용한 자동매매를 시작합니다.")
 
     condition_queue = asyncio.Queue()
+    command_queue = asyncio.Queue()
+    condition_set = set()
+
     asyncio.create_task(
         realtime_condition_connect_buy_function(
-            access_token_dict=ACCESS_TOKEN_DICT, condition_queue=condition_queue
+            access_token_dict=ACCESS_TOKEN_DICT,
+            condition_queue=condition_queue,
+            condition_set=condition_set,
         )
     )
     asyncio.create_task(
@@ -47,8 +53,11 @@ async def lifespan(app: FastAPI):
             access_token_dict=ACCESS_TOKEN_DICT,
             kospi_kosdaq_stockcode_dict=kospi_kosdaq_stockcode,
             condition_queue=condition_queue,
+            command_queue=command_queue,
         )
     )
+    if env_settings.BUY_AGAIN_FLAG == "1":
+        asyncio.create_task(command_handler(command_queue, condition_set))
 
     yield
 
@@ -59,4 +68,4 @@ app = FastAPI(lifespan=lifespan)
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)
