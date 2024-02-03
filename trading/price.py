@@ -263,9 +263,10 @@ async def register_stocks_realtimeprice(
                     loss_flag = True
                     # 손절할 경우 다시 돌파매매를 가능하도록 설정해줍니다.
                     # command_queue -> condition_search.py command_handler함수에 연결되어져 있습니다.
-                    command_queue.put_nowait(
-                        ("delete", stocks_realtimeprice_request.IsuNo)
-                    )
+                    if env_settings.BUY_AGAIN_FLAG == "1":
+                        command_queue.put_nowait(
+                            ("delete", stocks_realtimeprice_request.IsuNo)
+                        )
 
         del stock_profit_loss_price_dict[stocks_realtimeprice_request.IsuNo]
 

@@ -56,8 +56,8 @@ async def lifespan(app: FastAPI):
             command_queue=command_queue,
         )
     )
-
-    asyncio.create_task(command_handler(command_queue, condition_set))
+    if env_settings.BUY_AGAIN_FLAG == "1":
+        asyncio.create_task(command_handler(command_queue, condition_set))
 
     yield
 
@@ -68,4 +68,4 @@ app = FastAPI(lifespan=lifespan)
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)
