@@ -63,6 +63,11 @@ async def register_stocks_realtimeprice(
             stocks_realtimeprice_request.IsuNo
         ]["buy_price"]
 
+        # 매수이후에 최저가를 의미
+        after_buy_low_price = stock_profit_loss_price_dict[
+            stocks_realtimeprice_request.IsuNo
+        ]["buy_price"]
+
         while True:
             data = await websocket.recv()
             data_dict = json.loads(data)
@@ -129,6 +134,44 @@ async def register_stocks_realtimeprice(
                                 stock_profit_loss_price_dict[
                                     stocks_realtimeprice_request.IsuNo
                                 ]["add_profit_2_price"] = add_profit_2_price
+
+                # 현재가가 1차매수이후 저점이면 저점 갱신
+                if after_buy_low_price > now_price:
+                    after_buy_low_price = now_price
+                    if env_settings.PROFIT_CRITERION == "low":
+                        profit_1_price = calculate_profit_price(
+                            now_price, env_settings.PROFIT_PERCENT_1
+                        )
+                        profit_2_price = calculate_profit_price(
+                            now_price, env_settings.PROFIT_PERCENT_2
+                        )
+
+                        stock_profit_loss_price_dict[
+                            stocks_realtimeprice_request.IsuNo
+                        ]["profit_1_price"] = profit_1_price
+                        stock_profit_loss_price_dict[
+                            stocks_realtimeprice_request.IsuNo
+                        ]["profit_2_price"] = profit_2_price
+
+                # 추가매수를 진행할 경우 추가매수 기준 저점 갱신시 익절가 업데이트
+                if env_settings.ADD_BUY_FLAG == "1":
+                    # 현재가가 2차매수이후 저점이면 저점 갱신
+                    if add_buy_flag and (after_add_buy_low_price > now_price):
+                        after_add_buy_low_price = now_price
+                        if env_settings.PROFIT_CRITERION == "low":
+                            add_profit_1_price = calculate_profit_price(
+                                now_price, env_settings.ADD_PROFIT_PERCENT_1
+                            )
+                            add_profit_2_price = calculate_profit_price(
+                                now_price, env_settings.ADD_PROFIT_PERCENT_2
+                            )
+
+                            stock_profit_loss_price_dict[
+                                stocks_realtimeprice_request.IsuNo
+                            ]["add_profit_1_price"] = add_profit_1_price
+                            stock_profit_loss_price_dict[
+                                stocks_realtimeprice_request.IsuNo
+                            ]["add_profit_2_price"] = add_profit_2_price
 
                 # 1차 익절가 # 절반 익절 (매수개수의 절반 익절)
                 if (
@@ -198,6 +241,9 @@ async def register_stocks_realtimeprice(
                             remain_qty += stock_profit_loss_price_dict[
                                 stocks_realtimeprice_request.IsuNo
                             ]["buy_2_qty"]
+
+                            # 매수이후에 최저가를 의미
+                            after_add_buy_low_price = now_price
                     else:  # 매수한경우
                         # 추가 매수 1차 익절가
                         if (
@@ -346,11 +392,11 @@ async def condition_stock_register_realtimeprice(
 
             stock_profit_loss_price_dict[stock_code] = {
                 "buy_price": stock_buy_price,  # 고정
-                "profit_1_price": profit_1_price,  # 고정
-                "profit_2_price": profit_2_price,  # 고정
+                "profit_1_price": profit_1_price,  # 저점 기준이면 계속 업데이트
+                "profit_2_price": profit_2_price,  # 저점 기준이면 계속 업데이트
                 "add_buy_price": add_buy_price,  # 고점 기준이면 add_buy할때까지는 계속해서 업데이트
-                "add_profit_1_price": add_profit_1_price,  # 고점 기준이면 add_buy할때까지는 계속해서 업데이트
-                "add_profit_2_price": add_profit_2_price,  # 고점 기준이면 add_buy할때까지는 계속해서 업데이트
+                "add_profit_1_price": add_profit_1_price,  # 고점 기준이면 add_buy할때까지는 계속해서 업데이트 또한 익절가격도 저점기준이면 저점이 매수이후 갱신되면 계속 업데이트
+                "add_profit_2_price": add_profit_2_price,  # 고점 기준이면 add_buy할때까지는 계속해서 업데이트 또한 익절가격도 저점기준이면 저점이 매수이후 갱신되면 계속 업데이트
                 "loss_price": loss_price,  # 1차매수, 추가매수 모두 동일한 손절 가격
                 "buy_1_qty": buy_1_qty,
                 "buy_2_qty": buy_2_qty,
@@ -362,8 +408,8 @@ async def condition_stock_register_realtimeprice(
         else:
             stock_profit_loss_price_dict[stock_code] = {
                 "buy_price": stock_buy_price,  # 고정
-                "profit_1_price": profit_1_price,  # 고정
-                "profit_2_price": profit_2_price,  # 고정
+                "profit_1_price": profit_1_price,  # 저점 기준이면 계속 업데이트
+                "profit_2_price": profit_2_price,  # 저점 기준이면 계속 업데이트
                 "loss_price": loss_price,  # 손절 가격
                 "buy_1_qty": buy_1_qty,
                 "sell_1-1_qty": int(buy_1_qty // 2),

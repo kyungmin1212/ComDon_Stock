@@ -2,6 +2,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    DISCORD_PRICE_WEBHOOK_URL: str
+    DISCORD_BUY_SELL_WEBHOOK_URL: str
     APP_KEY: str
     APP_SECRET: str
     VIRTUAL_FLAG: str
@@ -11,6 +13,7 @@ class Settings(BaseSettings):
     CONDITION_NAME: str
     TOTAL_BALANCE: float
     MAX_STOCKS: int
+    PROFIT_CRITERION: str
     PROFIT_PERCENT_1: float
     PROFIT_PERCENT_2: float
     LOSS_CRITERION: str
